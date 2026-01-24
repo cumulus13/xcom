@@ -1,0 +1,58 @@
+bin = [
+    { name = "xmove", path = "src/bin/xmove.rs" },
+    { name = "copyx", path = "src/bin/xcopy.rs" },
+]
+
+[package]
+name = "xcom"
+version = "0.1.0"
+edition = "2021"
+authors = [
+    "Hadi Cahyadi <cumulus13@gmail.com>",
+]
+description = "Windows file operations utility with shell integration for copy and move operations"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/cumulus13/xcom"
+homepage = "https://github.com/cumulus13/xcom"
+documentation = "https://docs.rs/xcom"
+readme = "README.md"
+keywords = [
+    "windows",
+    "file",
+    "copy",
+    "move",
+    "shell",
+]
+categories = [
+    "command-line-utilities",
+    "filesystem",
+    "os::windows-apis",
+]
+
+[dependencies]
+chrono = "0.4"
+walkdir = "2.4"
+clap-version-flag = "1.0.7"
+
+[dependencies.clap]
+version = "4.4"
+features = [
+    "derive",
+]
+
+[target."cfg(windows)".dependencies.winapi]
+version = "0.3"
+features = [
+    "shellapi",
+    "windef",
+    "winerror",
+]
+
+[dev-dependencies]
+tempfile = "3.8"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true

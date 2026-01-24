@@ -1,0 +1,12 @@
+/target/
+**/*.rs.bk
+Cargo.lock
+*.log
+# Added entries (1 items)
+test/
+
+# Added entries (2 items)
+*subli*
+*.bat
+# PT backup directory
+.pt/
