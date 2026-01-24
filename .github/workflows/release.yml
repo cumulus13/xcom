@@ -5,29 +5,40 @@ on:
     tags:
       - 'v*'
 
+permissions:
+  contents: write
+
 jobs:
   release:
     runs-on: windows-latest
-    permissions:
-      contents: write
     
     steps:
       - uses: actions/checkout@v4
       
       - uses: dtolnay/rust-toolchain@stable
       
-      - run: cargo build --release
+      - name: Build
+        run: cargo build --release --verbose
       
-      - run: cargo test --release
+      - name: Test
+        run: cargo test --release --verbose
       
-      - name: Package
+      - name: Create Release Dir
         run: |
-          mkdir release
-          copy target\release\xmove.exe release\
-          copy target\release\xcopy.exe release\
-          copy README.md release\
-          tar -a -c -f xcom-windows.zip release
+          New-Item -ItemType Directory -Force -Path release
+          Copy-Item target\release\xmove.exe release\
+          Copy-Item target\release\copyx.exe release\
+          Copy-Item README.md release\
+        shell: pwsh
       
-      - uses: softprops/action-gh-release@v2
+      - name: Archive Release
+        run: |
+          Compress-Archive -Path release\* -DestinationPath xcom-windows-x64.zip
+        shell: pwsh
+      
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
         with:
-          files: xcom-windows.zip
+          files: xcom-windows-x64.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
