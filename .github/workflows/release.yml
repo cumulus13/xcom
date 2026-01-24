@@ -2,43 +2,160 @@ name: Release
 
 on:
   push:
+    branches:
+      - master
     tags:
       - 'v*'
+  pull_request:
+    branches:
+      - master
 
-permissions:
-  contents: write
+env:
+  CARGO_TERM_COLOR: always
 
 jobs:
-  release:
+  build:
+    name: Build - ${{ matrix.platform.target }}
+    runs-on: ${{ matrix.platform.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            name: xcom-x86_64-pc-windows-msvc.zip
+          - os: windows-latest
+            target: i686-pc-windows-msvc
+            name: xcom-i686-pc-windows-msvc.zip
+          - os: windows-latest
+            target: aarch64-pc-windows-msvc
+            name: xcom-aarch64-pc-windows-msvc.zip
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.platform.target }}
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo index
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-cargo-git-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo build
+        uses: actions/cache@v4
+        with:
+          path: target
+          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build release
+        run: cargo build --release --target ${{ matrix.platform.target }}
+
+      - name: Run tests
+        run: cargo test --release --target ${{ matrix.platform.target }}
+
+      - name: Package binaries
+        shell: pwsh
+        run: |
+          $target = "${{ matrix.platform.target }}"
+          $releasePath = "target/$target/release"
+          
+          # Create release directory
+          New-Item -ItemType Directory -Force -Path "release"
+          
+          # Copy binaries
+          Copy-Item "$releasePath/xmove.exe" "release/"
+          Copy-Item "$releasePath/copyx.exe" "release/"
+          
+          # Copy documentation
+          Copy-Item "README.md" "release/"
+          
+          # Create zip archive
+          Compress-Archive -Path "release/*" -DestinationPath "${{ matrix.platform.name }}"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.platform.target }}
+          path: ${{ matrix.platform.name }}
+
+  create-release:
+    name: Create Release
+    needs: build
     runs-on: windows-latest
+    if: startsWith(github.ref, 'refs/tags/v')
     
     steps:
-      - uses: actions/checkout@v4
-      
-      - uses: dtolnay/rust-toolchain@stable
-      
-      - name: Build
-        run: cargo build --release --verbose
-      
-      - name: Test
-        run: cargo test --release --verbose
-      
-      - name: Create Release Dir
-        run: |
-          New-Item -ItemType Directory -Force -Path release
-          Copy-Item target\release\xmove.exe release\
-          Copy-Item target\release\copyx.exe release\
-          Copy-Item README.md release\
-        shell: pwsh
-      
-      - name: Archive Release
-        run: |
-          Compress-Archive -Path release\* -DestinationPath xcom-windows-x64.zip
-        shell: pwsh
-      
-      - name: Create Release
-        uses: softprops/action-gh-release@v2
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
         with:
-          files: xcom-windows-x64.zip
+          path: artifacts
+
+      - name: Display structure of downloaded files
+        run: ls -R artifacts
+
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          files: |
+            artifacts/**/*.zip
+          body: |
+            ## xcom ${{ github.ref_name }}
+            
+            Windows file operations utility with shell integration.
+            
+            ### Downloads
+            - **x86_64-pc-windows-msvc** - 64-bit Windows (Intel/AMD)
+            - **i686-pc-windows-msvc** - 32-bit Windows
+            - **aarch64-pc-windows-msvc** - 64-bit Windows (ARM)
+            
+            ### Installation
+            1. Download the appropriate zip file for your system
+            2. Extract the binaries (xmove.exe, copyx.exe)
+            3. Add to your PATH or use directly
+            
+            ### Usage
+            ```bash
+            xmove source1 source2 destination
+            copyx source1 source2 destination
+            ```
+            
+            See [README.md](https://github.com/${{ github.repository }}/blob/master/README.md) for full documentation.
+
+  publish-crates:
+    name: Publish to crates.io
+    needs: build
+    runs-on: windows-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Publish to crates.io
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: cargo publish --token $CARGO_REGISTRY_TOKEN
