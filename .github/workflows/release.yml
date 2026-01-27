@@ -27,10 +27,7 @@ jobs:
           - os: windows-latest
             target: i686-pc-windows-msvc
             name: xcom-i686-pc-windows-msvc.zip
-          - os: windows-latest
-            target: aarch64-pc-windows-msvc
-            name: xcom-aarch64-pc-windows-msvc.zip
-
+          
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -76,6 +73,7 @@ jobs:
           # Copy binaries
           Copy-Item "$releasePath/xmove.exe" "release/"
           Copy-Item "$releasePath/copyx.exe" "release/"
+          Copy-Item "$releasePath/recyclebin.exe" "release/"
           
           # Copy documentation
           Copy-Item "README.md" "release/"
@@ -127,17 +125,17 @@ jobs:
             ### Downloads
             - **x86_64-pc-windows-msvc** - 64-bit Windows (Intel/AMD)
             - **i686-pc-windows-msvc** - 32-bit Windows
-            - **aarch64-pc-windows-msvc** - 64-bit Windows (ARM)
             
             ### Installation
             1. Download the appropriate zip file for your system
-            2. Extract the binaries (xmove.exe, copyx.exe)
+            2. Extract the binaries (xmove.exe, copyx.exe, recyclebin.exe)
             3. Add to your PATH or use directly
             
             ### Usage
             ```bash
             xmove source1 source2 destination
             copyx source1 source2 destination
+            recyclebin
             ```
             
             See [README.md](https://github.com/${{ github.repository }}/blob/master/README.md) for full documentation.

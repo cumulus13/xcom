@@ -1,11 +1,12 @@
 bin = [
     { name = "xmove", path = "src/bin/xmove.rs" },
     { name = "copyx", path = "src/bin/xcopy.rs" },
+    { name = "recyclebin", path = "src/bin/recyclebin.rs" },
 ]
 
 [package]
 name = "xcom"
-version = "0.1.4"
+version = "0.1.5"
 edition = "2021"
 authors = [
     "Hadi Cahyadi <cumulus13@gmail.com>",

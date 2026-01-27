@@ -1,11 +1,12 @@
 # xcom
 
-A professional Windows file operations utility providing `xmove` and `copyx` commands with Windows Shell integration.
+A professional Windows file operations utility providing `xmove`, `copyx` and `recyclebin` commands with Windows Shell integration.
 
 ## Features
 
 - **xmove**: Move files and directories using Windows Shell operations
 - **copyx**: Copy files and directories using Windows Shell operations
+- **recyclebin**: A command-line tool to manage the Windows Recycle Bin using Rust
 - Wildcard support (`*` patterns)
 - Recursive directory operations
 - Comprehensive logging with timestamps
@@ -85,6 +86,12 @@ copyx *.txt destination/
 
 # Show version
 copyx --version
+```
+
+### Recyclebin
+```bash
+#clean up recycle bin
+recyclebin -c
 ```
 
 ## Logging
