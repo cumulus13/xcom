@@ -6,7 +6,7 @@ bin = [
 
 [package]
 name = "xcom"
-version = "0.1.5"
+version = "0.1.6"
 edition = "2021"
 authors = [
     "Hadi Cahyadi <cumulus13@gmail.com>",

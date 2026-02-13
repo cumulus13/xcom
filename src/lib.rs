@@ -246,36 +246,59 @@ pub fn process_sources(
     dest: &Path,
     operation: FileOperation,
 ) -> Result<(), String> {
+    let mut all_paths = Vec::new();
+    let mut has_wildcard = false;
+
     for source in &sources {
         if source == "*" {
-            perform_operation(None, dest, false, operation)?;
+            has_wildcard = true;
+            // Get all files in current directory
+            let list_dir: Vec<PathBuf> = std::fs::read_dir(".")
+                .map_err(|e| format!("Failed to read directory: {}", e))?
+                .filter_map(|entry| entry.ok())
+                .map(|entry| entry.path())
+                .collect();
+            all_paths.extend(list_dir);
         } else if source.ends_with('*') {
+            has_wildcard = true;
             let path = if source.len() > 1 {
                 Path::new(&source[..source.len() - 1])
             } else {
                 Path::new(".")
             };
-            perform_operation(Some(path), dest, false, operation)?;
+            // Get all files in specified directory
+            let list_dir: Vec<PathBuf> = std::fs::read_dir(path)
+                .map_err(|e| format!("Failed to read directory: {}", e))?
+                .filter_map(|entry| entry.ok())
+                .map(|entry| entry.path())
+                .collect();
+            all_paths.extend(list_dir);
         } else {
-            let path = PathBuf::from(source);
-            let log_msg = format!(
-                "{}: \"{}\" --> \"{}\"",
-                operation.as_str(),
-                source,
-                dest.display()
-            );
-            logs(&log_msg);
-
-            match win32_shell_operation(vec![path], dest, operation) {
-                Ok(_) => {}
-                Err(e) => {
-                    logs(&e);
-                    return Err(e);
-                }
-            }
+            all_paths.push(PathBuf::from(source));
         }
     }
-    Ok(())
+
+    // Process ALL files in ONE operation, just like Python!
+    let files_str: Vec<String> = all_paths
+        .iter()
+        .map(|p| p.to_string_lossy().to_string())
+        .collect();
+
+    let log_msg = format!(
+        "{}: \"{}\" --> \"{}\"",
+        operation.as_str(),
+        files_str.join("; "),
+        dest.display()
+    );
+    logs(&log_msg);
+
+    match win32_shell_operation(all_paths, dest, operation) {
+        Ok(_) => Ok(()),
+        Err(e) => {
+            logs(&e);
+            Err(e)
+        }
+    }
 }
 
 #[cfg(test)]
