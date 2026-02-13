@@ -6,7 +6,7 @@ bin = [
 
 [package]
 name = "xcom"
-version = "0.1.6"
+version = "0.1.7"
 edition = "2021"
 authors = [
     "Hadi Cahyadi <cumulus13@gmail.com>",
@@ -34,6 +34,8 @@ categories = [
 chrono = "0.4"
 walkdir = "2.4"
 clap-version-flag = "1.0.7"
+windows = "0.62.2"
+make_colors = "1.0.2"
 
 [dependencies.clap]
 version = "4.4"
