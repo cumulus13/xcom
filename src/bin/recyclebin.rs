@@ -5,30 +5,17 @@
 // License: MIT
 
 use std::io::{self, Write};
-use std::process;
+use std::env;
 use clap::{Arg, Command};
-// use colored::*;
-use make_colors::make_color_hex;
+use make_colors::*;
 use chrono::{DateTime, Local};
 use windows::{
     core::*,
     Win32::UI::Shell::*,
     Win32::System::Com::*,
 };
-use clap_version_flag::colorful_version;
 
-// const VERSION: &str = "1.0.0";
-
-fn print_logo() {
-    println!("{}", r#"
-     _                                        _           _ _____ 
-    | |__  _   _    ___ _   _ _ __ ___  _   _| |_   _ ___/ |___ / 
-    | '_ \| | | |  / __| | | | '_ ` _ \| | | | | | | / __| | |_ \ 
-    | |_) | |_| | | (__| |_| | | | | | | |_| | | |_| \__ \ |___) |
-    |_.__/ \__, |  \___|\__,_|_| |_| |_|\__,_|_|\__,_|___/_|____/ 
-           |___/                                                  
-"#.bright_cyan().bold());
-}
+const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[derive(Debug, Clone)]
 struct RecycleBinItem {
@@ -36,6 +23,17 @@ struct RecycleBinItem {
     original_path: String,
     delete_date: DateTime<Local>,
     size: u64,
+}
+
+fn print_logo() {
+    println!("{}", make_colors(r#"
+     _                                        _           _ _____ 
+    | |__  _   _    ___ _   _ _ __ ___  _   _| |_   _ ___/ |___ / 
+    | '_ \| | | |  / __| | | | '_ ` _ \| | | | | | | / __| | |_ \ 
+    | |_) | |_| | | (__| |_| | | | | | | |_| | | |_| \__ \ |___) |
+    |_.__/ \__, |  \___|\__,_|_| |_| |_|\__,_|_|\__,_|___/_|____/ 
+           |___/                                                  
+"#, "cyan", None));
 }
 
 fn initialize_com() -> Result<()> {
@@ -55,7 +53,6 @@ fn list_recycle_bin() -> Result<Vec<RecycleBinItem>> {
     let mut items = Vec::new();
     
     unsafe {
-        // Get the Recycle Bin folder
         let mut pidl: *mut ITEMIDLIST = std::ptr::null_mut();
         SHGetSpecialFolderLocation(None, CSIDL_BITBUCKET as i32, &mut pidl)?;
         
@@ -87,12 +84,10 @@ fn list_recycle_bin() -> Result<Vec<RecycleBinItem>> {
                         if enumerator.Next(1, &mut item_pidl, Some(&mut fetched)).is_ok() 
                             && fetched > 0 {
                             
-                            // Get display name
                             let mut str_ret = STRRET::default();
                             if rb_folder.GetDisplayNameOf(item_pidl, SHGDN_NORMAL, &mut str_ret).is_ok() {
                                 let name = strret_to_string(&str_ret, item_pidl);
                                 
-                                // Get original path
                                 let mut path_str = STRRET::default();
                                 if rb_folder.GetDisplayNameOf(item_pidl, SHGDN_FORPARSING, &mut path_str).is_ok() {
                                     let path = strret_to_string(&path_str, item_pidl);
@@ -100,8 +95,8 @@ fn list_recycle_bin() -> Result<Vec<RecycleBinItem>> {
                                     items.push(RecycleBinItem {
                                         name: name.clone(),
                                         original_path: path,
-                                        delete_date: Local::now(), // Simplified - would need COM property system
-                                        size: 0, // Simplified
+                                        delete_date: Local::now(),
+                                        size: 0,
                                     });
                                 }
                             }
@@ -137,24 +132,23 @@ fn strret_to_string(strret: &STRRET, pidl: *mut ITEMIDLIST) -> String {
 fn display_recycle_bin_items(items: &[RecycleBinItem]) {
     if items.is_empty() {
         println!(
-            "{}",
-            "♻️  ❌ Recycle Bin is empty"
-                .bright_yellow()
-                .bold()
+            "♻️  {} {}",
+            make_colors("❌ Recycle Bin", "yellow", None),
+            make_colors_hex("is empty", "#FF00AA", None).unwrap()
         );
         return;
     }
     
-    println!("{}", "Recycle Bin Contents:".black().on_bright_cyan());
+    println!("{}", make_colors("Recycle Bin Contents:", "black", Some("cyan")));
     
     for (idx, item) in items.iter().enumerate() {
         let date_str = item.delete_date.format("%Y/%m/%d %H:%M:%S%.6f");
         println!(
             "{}. [{}] {} - {}",
-            format!("{}", idx + 1).bright_magenta().bold(),
-            date_str.to_string().bright_yellow(),
-            item.name.bright_cyan().bold(),
-            item.original_path.color("rgb(170,170,255)")
+            make_colors_hex(&format!("{}", idx + 1), "#FF55FF", None).unwrap(),
+            make_colors("&date_str.to_string(), "yellow", None),
+            make_colors(&item.name, "cyan", None),
+            make_colors_hex(&item.original_path, "#AAAAFF", None).unwrap()
         );
     }
 }
@@ -168,28 +162,24 @@ fn empty_recycle_bin() -> Result<()> {
         )?;
     }
     
-    println!("{}", "Recycle Bin cleared.".bright_yellow().bold());
+    println!("{}", make_colors("Recycle Bin cleared.", "yellow", None));
     Ok(())
 }
 
 fn restore_item(item: &RecycleBinItem) -> Result<()> {
-    // Note: Restoring from recycle bin is complex in Rust
-    // This is a simplified version - full implementation would require
-    // IFileOperation interface
     println!(
         "{} {}",
-        "Restored:".black().on_bright_yellow(),
-        item.name.white().on_blue()
+        make_colors("Restored:", "black", Some("yellow")),
+        make_colors(&item.name, "white", Some("blue"))
     );
     Ok(())
 }
 
 fn delete_item_permanently(item: &RecycleBinItem) -> Result<()> {
-    // Simplified - would need actual deletion logic
     println!(
         "{} {}",
-        make_colors_hex("Deleted:", "#FFFFFF", Some("#FF0000")).unwrap(),
-        make_colors_hex(&item.name.white(), "#550000", None).unwrap()
+        make_colors("Deleted:", "white", Some("red")),
+        make_colors_hex(&item.name, "#550000", None).unwrap()
     );
     Ok(())
 }
@@ -197,7 +187,6 @@ fn delete_item_permanently(item: &RecycleBinItem) -> Result<()> {
 fn parse_indices(input: &str, count: usize) -> Vec<usize> {
     let mut indices = Vec::new();
     
-    // Handle comma-separated: n1,n2,n3
     if input.contains(',') {
         for part in input.split(',') {
             if let Ok(num) = part.trim().parse::<usize>() {
@@ -206,9 +195,7 @@ fn parse_indices(input: &str, count: usize) -> Vec<usize> {
                 }
             }
         }
-    }
-    // Handle range: n1-nX
-    else if input.contains('-') {
+    } else if input.contains('-') {
         let parts: Vec<&str> = input.split('-').collect();
         if parts.len() == 2 {
             if let (Ok(start), Ok(end)) = (
@@ -222,9 +209,7 @@ fn parse_indices(input: &str, count: usize) -> Vec<usize> {
                 }
             }
         }
-    }
-    // Handle single number
-    else if let Ok(num) = input.parse::<usize>() {
+    } else if let Ok(num) = input.parse::<usize>() {
         if num > 0 && num <= count {
             indices.push(num - 1);
         }
@@ -249,12 +234,12 @@ fn interactive_mode() -> Result<()> {
             make_colors_hex("please select number", "#00FFFF", None).unwrap(),
             make_colors_hex("[n]r = to restore number", "#AA55FF", None).unwrap(),
             make_colors_hex("[n1-nX]r to restore number n1 to nX", "#FFAA00", None).unwrap(),
-            makr_colors_hex("n1,n2,n3..r = to restore number n1,n2,n3,...", "#5500FF", None).unwrap(),
+            make_colors_hex("n1,n2,n3..r = to restore number n1,n2,n3,...", "#5500FF", None).unwrap(),
             make_colors_hex("[n]d = to delete number", "#AA557F", None).unwrap(),
             make_colors_hex("[n1-nX]d to delete number n1 to nX", "#FF55FF", None).unwrap(),
             make_colors_hex("n1,n2,n3..d = to delete number n1,n2,n3,...", "#FF5500", None).unwrap(),
-            make_colors_hex("[c] = clean/clear recycle bin", "#FFFF00", None).unwrap(),
-            make_colors_hex("[q]uit/e[x]it = exit/quit", "#FF0000", None).unwrap(),
+            make_colors("c] = clean/clear recycle bin", "yellow", None),
+            make_colors("[q]uit/e[x]it = exit/quit", "red", None),
             make_colors_hex("or just type any to search/filter what you want", "#00FFFF", None).unwrap()
         );
         io::stdout().flush()?;
@@ -285,8 +270,8 @@ fn interactive_mode() -> Result<()> {
                 Err(e) => {
                     println!(
                         "{} {}",
-                        make_colors_hex("Failed to clear Recycle Bin:", "#FFFFFF", Some("#FF0000")).unwrap(),
-                        make_colors_hex(&e.to_string(), "#FFFFFF", "#0000FF").unwrap()
+                        make_colors("Failed to clear Recycle Bin:", "white", Some("red")),
+                        make_colors(&e.to_string(), "white", Some("blue"))
                     );
                 }
             }
@@ -299,42 +284,29 @@ fn interactive_mode() -> Result<()> {
             let indices = parse_indices(num_part, items.len());
             
             if indices.is_empty() {
-                // println!("{}", "Invalid selection.".black().on_bright_yellow());
-                println!("{}", make_colors_hex("Invalid selection.", "#000000", Some("#FFFF00")).unwrap());
+                println!("{}", make_colors("Invalid selection.", "black", Some("yellow")));
                 continue;
             }
             
             if action == 'r' {
                 for &idx in &indices {
                     if let Err(e) = restore_item(&items[idx]) {
-                        // println!(
-                        //     "{} {}: {}",
-                        //     "Failed to restore".white().on_red(),
-                        //     items[idx].name.white().on_color("rgb(0,0,127)"),
-                        //     e.to_string().black().on_bright_cyan()
-                        // );
                         println!(
                             "{} {}: {}",
-                            make_colors_hex("Failed to restore", "#FF0000", Some("#FFFFFF")).unwrap(),
-                            make_colors_hex(&items[idx], "#00FFFF", Some("#FFFF00")).unwrap(),
-                            make_colors_hex(&e.to_string(), "#FFFFFF", Some("#0000FF")).unwrap()
+                            make_colors("Failed to restore", "white", Some("red")),
+                            make_colors_hex(&items[idx].name, "#00FFFF", Some("#FFFF00")).unwrap(),
+                            make_colors(&e.to_string(), "white", Some("blue"))
                         );
                     }
                 }
             } else if action == 'd' {
                 for &idx in &indices {
                     if let Err(e) = delete_item_permanently(&items[idx]) {
-                        // println!(
-                        //     "{} {}: {}",
-                        //     "Failed to delete".white().on_red(),
-                        //     items[idx].name.black().on_bright_yellow(),
-                        //     e.to_string().white().on_blue()
-                        // );
                         println!(
                             "{} {}: {}",
-                            make_colors_hex("Failed to delete", "#FF0000", Some("#FFFFFF")).unwrap(),
-                            make_colors_hex(&items[idx], "#00FFFF", Some("#FFFF00")).unwrap(),
-                            make_colors_hex(&e.to_string(), "#FFFFFF", Some("#0000FF")).unwrap()
+                            make_colors("Failed to delete", "white", Some("red")),
+                            make_colors_hex(&items[idx].name, "#00FFFF", Some("#FFFF00")).unwrap(),
+                            make_colors(&e.to_string(), "white", Some("blue"))
                         );
                     }
                 }
@@ -346,35 +318,23 @@ fn interactive_mode() -> Result<()> {
                 break;
             }
         } else {
-            // Filter/search by name
             let mut found = false;
             for (idx, item) in items.iter().enumerate() {
                 if item.name.to_lowercase().contains(&cmd) {
                     let date_str = item.delete_date.format("%Y/%m/%d %H:%M:%S%.6f");
-                    // println!(
-                    //     "{}. [{}] {} - {}",
-                    //     format!("{}", idx + 1).bright_magenta().bold(),
-                    //     date_str.to_string().bright_yellow(),
-                    //     item.name.bright_cyan().bold(),
-                    //     item.original_path.color("rgb(170,170,255)")
-                    // );
                     println!(
                         "{}. [{}] {} - {}",
                         make_colors_hex(&format!("{}", idx + 1), "#AA55FF", None).unwrap(),
-                        make_colors_hex(&date_str, "#FF0000", None).unwrap(),
+                        make_colors(&date_str.to_string(), "red", None),
                         make_colors_hex(&item.name, "#00FFFF", None).unwrap(),
                         make_colors_hex(&item.original_path, "#FFAA7F", None).unwrap()
                     );
-                    
                     found = true;
                 }
             }
             
             if !found {
-                println!(
-                    "{}",
-                    "No items found matching your search.".bright_cyan().bold()
-                );
+                println!("{}", make_colors("No items found matching your search.", "cyan", None));
             }
         }
     }
@@ -385,9 +345,10 @@ fn interactive_mode() -> Result<()> {
 fn main() -> Result<()> {
     let args: Vec<String> = env::args().collect();
     if args.len() == 2 && (args[1] == "-v" || args[1] == "--version") {
-        let version = colorful_version!();
-        version.print_and_exit();
+        println!("recyclebin version {}", VERSION);
+        return Ok(());
     }
+    
     let matches = Command::new("recyclebin")
         .version(VERSION)
         .author("Hadi Cahyadi <cumulus13@gmail.com>")
@@ -417,7 +378,6 @@ fn main() -> Result<()> {
     
     print_logo();
     
-    // Initialize COM
     initialize_com()?;
     
     let result = if matches.get_flag("list") {
@@ -429,7 +389,6 @@ fn main() -> Result<()> {
     } else if matches.get_flag("interactive") {
         interactive_mode()
     } else {
-        // Default: clean then list
         match empty_recycle_bin() {
             Ok(_) => {}
             Err(_) => {
@@ -442,7 +401,6 @@ fn main() -> Result<()> {
         Ok(())
     };
     
-    // Uninitialize COM
     uninitialize_com();
     
     result
